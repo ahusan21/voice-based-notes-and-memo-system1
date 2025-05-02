@@ -6,15 +6,13 @@ import threading
 import speech_recognition as sr
 import pyttsx3
 import dateparser
-import googleassistant
+
 class VoiceAssistant:
     def __init__(self, wake_word="hey assistant", user_name="User"):
-        # Configuration
         self.WAKE_WORD = wake_word.lower()
         self.USER_NAME = user_name
         self.keep_running = True
 
-        # Initialize components
         self.setup_voice_engine()
         self.setup_voice_recognition()
         self.setup_data_storage()
@@ -23,7 +21,6 @@ class VoiceAssistant:
         print(f"{self.USER_NAME}'s Assistant Ready!")
 
     def setup_voice_engine(self):
-        """Initialize text-to-speech engine"""
         self.engine = pyttsx3.init()
         self.engine.setProperty('rate', 170)
         self.engine.setProperty('volume', 1.0)
@@ -32,21 +29,18 @@ class VoiceAssistant:
             self.engine.setProperty('voice', voices[0].id)
 
     def setup_voice_recognition(self):
-        """Initialize speech recognition"""
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()
         with self.microphone as source:
             self.recognizer.adjust_for_ambient_noise(source, duration=1)
 
     def setup_data_storage(self):
-        """Initialize data storage system"""
         self.data_dir = "assistant_data"
         os.makedirs(self.data_dir, exist_ok=True)
         self.data_file = os.path.join(self.data_dir, "assistant_data.json")
         self.load_data()
 
     def load_data(self):
-        """Load existing data or create new storage"""
         try:
             if os.path.exists(self.data_file):
                 with open(self.data_file, 'r') as f:
@@ -65,7 +59,6 @@ class VoiceAssistant:
             self.data = {"reminders": [], "notes": [], "preferences": {}}
 
     def save_data(self):
-        """Save data with error handling"""
         try:
             with open(self.data_file, 'w') as f:
                 json.dump(self.data, f, indent=2)
@@ -73,13 +66,11 @@ class VoiceAssistant:
             print(f"Error saving data: {e}")
 
     def start_background_services(self):
-        """Start all background threads"""
         self.reminder_thread = threading.Thread(target=self.check_reminders)
         self.reminder_thread.daemon = True
         self.reminder_thread.start()
 
     def speak(self, text):
-        """Convert text to speech with logging"""
         print(f"Assistant: {text}")
         try:
             self.engine.say(text)
@@ -88,15 +79,10 @@ class VoiceAssistant:
             print(f"Error in speech synthesis: {e}")
 
     def listen(self):
-        """Listen for user input with robust error handling"""
         with self.microphone as source:
             print("\nListening...")
             try:
-                audio = self.recognizer.listen(
-                    source,
-                    timeout=10,
-                    phrase_time_limit=15
-                )
+                audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=15)
                 text = self.recognizer.recognize_google(audio).lower()
                 print(f"You: {text}")
                 return text
@@ -110,11 +96,9 @@ class VoiceAssistant:
                 print(f"Recognition error: {e}")
                 return None
 
-    # ===== REMINDER SYSTEM =====
     def parse_reminder_time(self, time_str):
-        """Parse both absolute and relative time formats"""
         if time_str.startswith("in "):
-            time_str = time_str[3:]  # Remove "in " prefix
+            time_str = time_str[3:]
 
         parsed_time = dateparser.parse(
             time_str,
@@ -125,7 +109,6 @@ class VoiceAssistant:
             }
         )
 
-        # Handle simple "X seconds/minutes/hours" formats
         if not parsed_time:
             try:
                 if "second" in time_str:
@@ -143,7 +126,6 @@ class VoiceAssistant:
         return parsed_time
 
     def add_reminder(self, what, when_str):
-        """Add a new reminder with flexible time parsing"""
         reminder_time = self.parse_reminder_time(when_str)
         if not reminder_time:
             return "Sorry, I didn't understand that time format"
@@ -158,7 +140,6 @@ class VoiceAssistant:
         })
         self.save_data()
 
-        # Generate confirmation message
         time_diff = reminder_time - datetime.datetime.now()
         if time_diff.total_seconds() < 60:
             return f"I'll remind you to {what} in {int(time_diff.total_seconds())} seconds"
@@ -168,17 +149,13 @@ class VoiceAssistant:
             return f"Reminder set for {reminder_time.strftime('%I:%M %p on %A')} to {what}"
 
     def check_reminders(self):
-        """Background thread to check for due reminders"""
         while self.keep_running:
             now = datetime.datetime.now()
             reminders_to_trigger = []
 
             for reminder in self.data["reminders"]:
                 try:
-                    reminder_time = datetime.datetime.strptime(
-                        reminder["when"],
-                        "%Y-%m-%d %H:%M:%S"
-                    )
+                    reminder_time = datetime.datetime.strptime(reminder["when"], "%Y-%m-%d %H:%M:%S")
                     if now >= reminder_time:
                         reminders_to_trigger.append(reminder)
                 except Exception as e:
@@ -190,12 +167,11 @@ class VoiceAssistant:
                     self.speak(f"🔔 Reminder! {reminder['what']}")
                     self.data["reminders"].remove(reminder)
                 self.save_data()
-                time.sleep(2)  # Pause between reminders
+                time.sleep(2)
 
-            time.sleep(1)  # Check every second
+            time.sleep(1)
 
     def show_reminders(self):
-        """List all upcoming reminders"""
         if not self.data["reminders"]:
             return "You have no reminders set"
 
@@ -225,12 +201,9 @@ class VoiceAssistant:
             return "Couldn't retrieve reminders"
 
     def show_my_reminders(self):
-        """List all upcoming reminders"""
         return self.show_reminders()
 
-    # ===== NOTE SYSTEM =====
     def add_note(self, text):
-        """Add a new note with timestamp"""
         if not text.strip():
             return "Please say something to add as a note"
 
@@ -242,7 +215,6 @@ class VoiceAssistant:
         return f"Note added: {text}"
 
     def show_notes(self):
-        """List all notes with timestamps"""
         if not self.data["notes"]:
             return "You have no notes"
 
@@ -256,11 +228,32 @@ class VoiceAssistant:
             print(f"Error showing notes: {e}")
             return "Couldn't retrieve notes"
 
-    # ===== COMMAND PROCESSING =====
-    def handle_reminder_command(self, command):
-        """Process reminder commands with flexible formats"""
+    def show_calendar(self, day_str="today"):
+        """Show reminders for a specific date"""
         try:
-            # Handle "remind me in X [time] to Y" format
+            date_obj = dateparser.parse(day_str)
+            if not date_obj:
+                return "I couldn't understand the date you said."
+
+            date_str = date_obj.strftime("%Y-%m-%d")
+            events = []
+
+            for reminder in self.data["reminders"]:
+                when = datetime.datetime.strptime(reminder["when"], "%Y-%m-%d %H:%M:%S")
+                if when.strftime("%Y-%m-%d") == date_str:
+                    events.append(f"- {when.strftime('%I:%M %p')}: {reminder['what']}")
+
+            if not events:
+                return f"You have no events on {date_str}"
+
+            return f"📅 Events for {date_str}:\n" + "\n".join(events)
+
+        except Exception as e:
+            print(f"Error in show_calendar: {e}")
+            return "Sorry, I couldn't get your calendar."
+
+    def handle_reminder_command(self, command):
+        try:
             if " in " in command and (" to " in command or " about " in command):
                 parts = command.split(" in ", 1)
                 action_part = parts[1]
@@ -274,7 +267,6 @@ class VoiceAssistant:
 
                 return self.add_reminder(what.strip(), f"in {time_part.strip()}")
 
-            # Handle "remind me to X in Y [time]" format
             elif " to " in command and " in " in command:
                 parts = command.split(" to ", 1)
                 action_part = parts[1]
@@ -283,7 +275,6 @@ class VoiceAssistant:
                     what, time_part = action_part.split(" in ", 1)
                     return self.add_reminder(what.strip(), f"in {time_part.strip()}")
 
-            # Handle traditional formats
             elif " to " in command:
                 parts = command.split(" to ", 1)
                 when, what = parts[0].replace("remind me", "").strip(), parts[1].strip()
@@ -299,13 +290,11 @@ class VoiceAssistant:
             return "Sorry, I couldn't set that reminder"
 
     def process_command(self, command):
-        """Main command processor"""
         if not command:
             return None
 
         command = command.lower()
 
-        # Configuration commands
         if command.startswith("set wake word"):
             new_word = command[13:].strip()
             if new_word:
@@ -322,21 +311,25 @@ class VoiceAssistant:
                 self.save_data()
                 return f"Okay, I'll call you {new_name}"
 
-        # Reminder commands
         elif "remind me" in command or "set reminder" in command:
             return self.handle_reminder_command(command)
 
         elif "my reminders" in command or "show reminders" in command:
             return self.show_my_reminders()
 
-        # Note commands
         elif "add note" in command:
             return self.add_note(command.replace("add note", "").strip())
 
         elif "my notes" in command or "show notes" in command:
             return self.show_notes()
 
-        # Basic commands
+        elif "show calendar" in command:
+            return self.show_calendar("today")
+
+        elif "calendar for" in command:
+            date_str = command.split("calendar for")[-1].strip()
+            return self.show_calendar(date_str)
+
         elif any(word in command for word in ["hello", "hi", "hey"]):
             return f"Hello {self.USER_NAME}! How can I help?"
 
@@ -354,7 +347,6 @@ class VoiceAssistant:
             return "I didn't understand that. Try saying 'remind me to...' or 'add note...'"
 
     def run(self):
-        """Main assistant loop"""
         self.speak(f"Hello {self.USER_NAME}! Say '{self.WAKE_WORD}' when you need me.")
 
         try:
@@ -379,6 +371,14 @@ class VoiceAssistant:
             self.speak("Shutting down...")
         finally:
             self.save_data()
+
+
+if __name__ == "__main__":
+    assistant = VoiceAssistant(wake_word="hey assistant", user_name="User")
+    assistant.run()
+
+if __name__ == "__main__":
+    Bellione().run()
 
 
 if __name__ == "__main__":
