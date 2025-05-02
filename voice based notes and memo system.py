@@ -379,8 +379,3 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     Bellione().run()
-
-
-if __name__ == "__main__":
-    assistant = VoiceAssistant(wake_word="hey assistant", user_name="User")
-    assistant.run()
