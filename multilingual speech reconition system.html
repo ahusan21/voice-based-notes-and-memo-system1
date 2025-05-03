@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🎙️ Multilingual Speech to English</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      height: 100vh;
+      background: url('https://source.unsplash.com/1600x900/?language,translation') no-repeat center center fixed;
+      background-size: cover;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 30px 40px;
+      border-radius: 15px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+      width: 90%;
+      text-align: center;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    select, button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      font-size: 1em;
+      border-radius: 8px;
+      border: none;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #translatedText {
+      margin-top: 20px;
+      font-size: 1.2em;
+      color: #222;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 1em;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌍 Speak & Translate to English</h1>
+
+    <label for="language">🎙️ Choose Language:</label>
+    <select id="language">
+      <option value="ta-IN">Tamil</option>
+      <option value="ml-IN">Malayalam</option>
+      <option value="hi-IN">Hindi</option>
+      <option value="fr-FR">French</option>
+      <option value="zh-CN">Chinese (Mandarin)</option>
+    </select>
+
+    <button onclick="startRecognition()">🎤 Start Speaking</button>
+
+    <div class="status" id="statusMsg">Waiting for input...</div>
+
+    <h2>Original Speech (<span id="languageName">---</span>):</h2>
+    <p id="originalText">---</p>
+
+    <h2>📝 English Translation:</h2>
+    <p id="translatedText">---</p>
+  </div>
+
+  <script>
+    const originalText = document.getElementById("originalText");
+    const translatedText = document.getElementById("translatedText");
+    const statusMsg = document.getElementById("statusMsg");
+    const languageName = document.getElementById("languageName");
+    const languageSelect = document.getElementById("language");
+
+    function startRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("❌ Your browser does not support Speech Recognition.");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      const selectedOption = languageSelect.options[languageSelect.selectedIndex];
+      const selectedLangCode = selectedOption.value;
+      const selectedLangName = selectedOption.text;
+
+      languageName.textContent = selectedLangName;
+      recognition.lang = selectedLangCode;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      statusMsg.textContent = "🎧 Listening...";
+
+      recognition.onresult = async function(event) {
+        const speechResult = event.results[0][0].transcript;
+        originalText.textContent = speechResult;
+        statusMsg.textContent = "🧠 Translating...";
+        const translated = await translateToEnglish(speechResult, selectedLangCode);
+        translatedText.textContent = translated;
+        statusMsg.textContent = "✅ Done!";
+      };
+
+      recognition.onerror = function(event) {
+        statusMsg.textContent = "❌ Error: " + event.error;
+        originalText.textContent = "---";
+        translatedText.textContent = "---";
+      };
+
+      recognition.start();
+    }
+
+    async function translateToEnglish(text, sourceLang) {
+      const langCode = sourceLang.split('-')[0];
+      try {
+        const res = await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=" + langCode + "&tl=en&dt=t&q=" + encodeURIComponent(text));
+        const data = await res.json();
+        return data[0].map(x => x[0]).join('');
+      } catch (err) {
+        return "⚠️ Translation failed.";
+      }
+    }
+  </script>
+</body>
+</html>
